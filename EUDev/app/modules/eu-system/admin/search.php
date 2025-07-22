@@ -1,0 +1,43 @@
+<?php
+use library\EssentialUnifiedInc\EUInc;
+use library\EssentialUnifiedData\EUData;
+$data=EUData::QueryData("cms_search_set","","","","")["querydata"];
+$app->Runin("data",$data);
+$app->Open("search.cms");
+if($_GET["do"]=="update"){
+    $ids=implode("-EU-",$_POST["sid"]);
+    $dbs=implode("-EU-",$_POST["sdb"]);
+    $fields=implode("-EU-",$_POST["sfield"]);
+    $wheres=implode("-EU-",$_POST["swhere"]);
+    $pages=implode("-EU-",$_POST["spage"]);
+    $idx=explode("-EU-",$ids);
+    $dbx=explode("-EU-",$dbs);
+    $fieldx=explode("-EU-",$fields);
+    $wherex=explode("-EU-",$wheres);
+    $pagex=explode("-EU-",$pages);
+    for($s=0;$s<=count($dbx);$s++){
+        if($idx[$s]=="x"){
+            EUData::InsertData("cms_search_set",array(
+                "dbs"=>$dbx[$s],
+                "fields"=>$fieldx[$s],
+                "wheres"=>$wherex[$s],
+                "pages"=>$pagex[$s]));
+        }else{
+            EUData::UpdateData("cms_search_set",array(
+                "dbs"=>$dbx[$s],
+                "fields"=>$fieldx[$s],
+                "wheres"=>$wherex[$s],
+                "pages"=>$pagex[$s]),"id='".$idx[$s]."'");
+        }
+        EUData::RunSql($sql);
+        }
+    EUInc::GoUrl("?m=eu-system&p=search","设置成功!");
+}
+if($_GET["do"]=="del"){
+    $id=EUInc::SqlCheck($_GET["id"]);
+    if(EUData::DelData("cms_search_set","id='$id'")){
+        EUInc::GoUrl("?m=eu-system&p=search","删除成功!");
+    }else{
+        EUInc::GoUrl("?m=eu-system&p=search","删除失败!");
+    }
+}
