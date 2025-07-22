@@ -1,0 +1,87 @@
+<?php
+use library\EssentialUnifiedInc\EUInc;
+use library\EssentialUnifiedData\EUData;
+$do=$_GET["do"];
+/**
+ * 载入私有模板
+ */
+$app->Runin("private_template",EUInc::Gettemplate());
+/**
+ * 载入第三方模板
+ */
+$app->Runin("pubilc_template",EUInc::Gettemplate(1));
+/**
+ * 载入订购模板
+ */
+$app->Runin("buy_template",EUInc::Gettemplate(2));
+/**
+ * 载入模板
+ */
+$app->Open("template.cms");
+if($do=="install"){
+    $t=$_GET["t"];
+    $tid=str_replace(".","",EUInc::SqlCheck($_GET["tid"]));
+    if($t!="s"):
+        if($t=="g"):
+            $down=EUInc::Auth($config["EUCODE"],$config["EUFURL"],"temp_".$tid);
+        elseif($t=="b"):  
+            $down=EUInc::Auth($config["EUCODE"],$config["EUFURL"],"temporder_".$tid);
+        endif;
+        $downurl=EUInc::StrSubstr("<downurl>","</downurl>",$down);
+        $filename=basename($downurl);
+        $res=EUInc::SaveFile($downurl,APP_ROOT."/template",$filename,1);
+        if(!empty($res)):
+            EUInc::Auth($config["EUCODE"],$config["EUFURL"],"tempdel_".str_replace(".zip","",$filename)."");
+            $zip=new ZipArchive;
+            if($zip->open(APP_ROOT."/template/".$filename)===TRUE): 
+                $zip->extractTo(APP_ROOT."/template/");
+                $zip->close();
+                unlink(APP_ROOT."/template/".$filename);
+            else:
+                EUInc::GoUrl("-1","template目录775权限不足!");
+            endif;
+        else:
+            EUInc::GoUrl("-1","安装权限不足!");
+        endif;
+    endif;
+    EUInc::MoveDir(APP_ROOT."/template/".$tid."/move",EUF_ROOT);
+    $template=file_get_contents(APP_ROOT."/template/".$tid."/essentialunified.config");
+    $md=EUInc::StrSubstr("<module>","</module>",$template);
+    $dir_data=EUInc::DirList(APP_ROOT."/modules");
+    $md_data=explode(",",$md);
+    if(EUInc::InArray($md_data,$dir_data)==0):
+        EUInc::DelDir(APP_ROOT."/template/".$tid);
+        EUInc::GoUrl("-1","模板工程依赖的模块缺失!模块如下：".$md);
+    endif;
+    $id=EUInc::StrSubstr("<id>","</id>",$template);
+    $type=EUInc::StrSubstr("<type>","</type>",$template);
+    $lang=EUInc::StrSubstr("<lang>","</lang>",$template);
+    $auther=EUInc::StrSubstr("<auther>","</auther>",$template);
+    $title=EUInc::StrSubstr("<title>","</title>",$template);
+    $ver=EUInc::StrSubstr("<ver>","</ver>",$template);
+    $description=EUInc::StrSubstr("<description>","</description>",$template);
+    $installsql=EUInc::StrSubstr("<installsql><![CDATA[","]]></installsql>",$template);
+    if(EUData::QueryData("cms_template","","tid='$tid'","","1")["querynum"]>0):
+        EUData::UpdateData("cms_template",array("tid"=>$tid,"lang"=>$lang,"title"=>$title),"tid='$tid'");
+    else:
+        EUData::InsertData("cms_template",array("tid"=>$tid,"lang"=>$lang,"title"=>$title));
+    endif;
+    if($installsql=='0'):
+        EUInc::GoUrl("?m=eu-template&p=template","成功安装模板!");
+    else:
+        if(EUData::RunSql($installsql)):
+            EUInc::GoUrl("?m=eu-template&p=template","成功安装模板!");
+        else:
+            EUInc::GoUrl("-1","模板安装失败!");
+        endif;   
+    endif;
+}
+if($do=="uninstall"){
+    $tid=str_replace(".","",EUInc::SqlCheck($_GET["tid"]));
+    if(EUData::DelData("cms_template","tid='$tid'")){
+        EUInc::DelDir(APP_ROOT."/template/".$tid);
+        EUInc::GoUrl("?m=eu-template&p=template","模板删除成功!");
+    }else{
+        EUInc::GoUrl("-1","模板删除失败!");
+    }
+}
